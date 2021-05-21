@@ -1,0 +1,10 @@
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\bin\Debug\DataAnalyser.exe.config
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\bin\Debug\DataAnalyser.exe
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\bin\Debug\DataAnalyser.pdb
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.csprojAssemblyReference.cache
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.Form1.resources
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.Properties.Resources.resources
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.csproj.GenerateResource.cache
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.csproj.CoreCompileInputs.cache
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.exe
+C:\Users\Virtual\Source\Repos\DataAnalyser\DataAnalyser\obj\Debug\DataAnalyser.pdb
