@@ -1,0 +1,29 @@
+{
+    "uf": "1",
+    "ut": "1",
+    "points": [
+        {
+            "cnt": "100",
+            "speed": "100",
+            "position": {
+                "vector": {
+                    "x": 810.3,
+                    "y": 1360,
+                    "z": -27.1,
+                    "w": 90,
+                    "p": -90,
+                    "r": 0
+                },
+                "type": "crt",
+                "config": {
+                    "front": "true",
+                    "up": "true",
+                    "left": "false",
+                    "flip": "true"
+                },
+                "e1": "700"
+            },
+            "path": "L"
+        }
+    ]
+}
