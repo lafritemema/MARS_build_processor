@@ -1,11 +1,13 @@
 from mars.action import EnumPriorityInterface
 from enum import Enum
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 import re
 
 
-def serialize(obj: object, form: str = "json", database: bool = False) -> str:
+def serialize(obj: object, form: str = "json",
+              database: bool = False,
+              ignore_keys: List[str] = []) -> str:
     """function to serialize a mars object
 
     Args:
@@ -18,13 +20,15 @@ def serialize(obj: object, form: str = "json", database: bool = False) -> str:
         str: string describing the objet under asking format
     """
 
-    so = to_dict(obj, database)
+    so = to_dict(obj, database, ignore_keys)
 
     if form == "json":
         return json.dumps(so)
 
 
-def to_dict(obj: object, database: bool = False) -> Dict:
+def to_dict(obj: object,
+            database: bool = False,
+            ignore_keys: List[str] = []) -> Dict:
     """ transform object to dictionnary
 
     Args:
@@ -40,20 +44,21 @@ def to_dict(obj: object, database: bool = False) -> Dict:
         if type(obj) == list:
             lt = []
             for va in obj:
-                lt.append(to_dict(va, database))
+                lt.append(to_dict(va, database, ignore_keys))
             return lt
         elif type(obj) == dict:
             d = {}
             for key, val in obj.items():
                 k = re.sub('^_{1,2}', '', key)
-                v = to_dict(val, database)
-                d[k] = v
+                if k not in ignore_keys:
+                    v = to_dict(val, database, ignore_keys)
+                    d[k] = v
             return d
         else:
             return __cast_val(obj)
 
     elif getattr(obj, 'to_dict', None):
-        return to_dict(obj.to_dict(), database)
+        return to_dict(obj.to_dict(), database, ignore_keys)
 
     elif EnumPriorityInterface in obj.__class__.__bases__ or\
             Enum in obj.__class__.__bases__:
@@ -66,8 +71,9 @@ def to_dict(obj: object, database: bool = False) -> Dict:
         for key, val in obj.__dict__.items():
             k = key.replace('_{}'.format(obj.__class__.__name__), '')
             k = re.sub('^_{1,2}', '', k)
-            v = to_dict(val, database)
-            so[k] = v
+            if k not in ignore_keys:
+                v = to_dict(val, database, ignore_keys)
+                so[k] = v
         return so
 
 
