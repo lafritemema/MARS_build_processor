@@ -1,5 +1,7 @@
 from enum import Enum, EnumMeta
-from typing import List, Optional
+from typing import List, Dict, Optional
+from mars.definition import Definition
+from mars.movement import Movement
 
 
 class EnumLevelInterface(EnumMeta):
@@ -58,6 +60,15 @@ class EnumPriorityInterface(Enum, metaclass=EnumLevelInterface):
         """
         return self.__name
 
+    @property
+    def definition_type(self) -> str:
+        """ get definition type
+
+        Returns:
+            str:definition type name
+        """
+        return self.__name.split('.')[0]
+
 
 class ActionArmMove(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration MOVE.ARM with 3 modes : APPROACH CLEARANCE WORK
@@ -69,7 +80,7 @@ class ActionArmMove(EnumPriorityInterface, metaclass=EnumLevelInterface):
 class ActionStationMove(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration MOVE.STATION with 2 modes : WORK HOME
     WORK = (40, 'MOVE.STATION.WORK')
-    HOME = (40, 'MOVE.STATION.HOME')
+    HOME = (39, 'MOVE.STATION.HOME')
 
 
 class ActionWork(EnumPriorityInterface, metaclass=EnumLevelInterface):
@@ -138,7 +149,7 @@ class Action:
 
     def __init__(self, id: str,
                  atype: ActionType,
-                 definition: object,
+                 definition: Definition,
                  description: str,
                  upstream_dependences: Optional[List["Action"]] = [],
                  downstream_dependences: Optional[List["Action"]] = []):
@@ -158,7 +169,7 @@ class Action:
 
         self.__id: str = id
         self.__type: ActionType = atype
-        self.__definition: object = definition
+        self.__definition: Definition = definition
         self.__upstream_dependences: List["Action"] = upstream_dependences
         self.__downstream_dependences: List["Action"] = downstream_dependences
         self.__description: str = description
@@ -181,7 +192,7 @@ class Action:
 
     @property
     def upstream_dependences(self) -> List['Action']:
-        """ get the list of upstream_dependences actioins
+        """ get the list of upstream_dependences actions
 
         Returns:
             List[Action]: the action list of dependencies
@@ -301,3 +312,51 @@ class Action:
             str: human readeable representation of Action
         """
         return self.__description
+
+    @staticmethod
+    def parseList(serialize_action_list: List[Dict],
+                  serialise_dependences_obj: object) -> List['Action']:
+
+        actions = []
+
+        for serialize_action in serialize_action_list:
+            _type: EnumPriorityInterface = ActionType[serialize_action['type']]
+            id = str(serialize_action['_id'])
+
+            if _type.definition_type == 'MOVE':
+                definition = Movement.parse(serialize_action['definition'])
+            else:
+                raise Exception("default on Action parsing")
+
+            description = serialize_action['description']
+
+            supstreamd = [serialise_dependences_obj[str(id)]
+                          for id in serialize_action['upstream_dependences']]
+            sdownstreamd = [serialise_dependences_obj[str(id)]
+                            for id in serialize_action['downstream_dependences']]
+
+            upstream_actions = Action.parseList(supstreamd,
+                                                serialise_dependences_obj)
+
+            downstream_actions = Action.parseList(sdownstreamd,
+                                                  serialise_dependences_obj)
+
+            action = Action(id,
+                            _type,
+                            definition,
+                            description,
+                            upstream_actions,
+                            downstream_actions)
+
+            actions.append(action)
+
+        return actions
+
+    def get_sequence(self):
+        sequence = {
+            "request_sequence": self.__definition.get_sequence(),
+            "type": self.__type.value,
+            "description": self.__description
+        }
+
+        return sequence

@@ -163,3 +163,9 @@ class ActionTree(Tree):
     def add_branch_for_action(self, branch_end: Action):
         dl = Dependencies.listDependences(branch_end)
         self.__add_action_nodes(dl)
+
+    def get_sequence(self):
+        sequence = [self.get_node(nid).data for nid in self.expand_tree()]
+        sequence.remove(None)
+        sequence = [d.get_sequence() for d in sequence]
+        return sequence
