@@ -4,3 +4,5 @@
 notebooks/test_notebook.ipynb
 notebooks/build_processor_new.ipynb
 notebooks/data
+mars/__pycache__
+server/__pycache__
