@@ -1,4 +1,6 @@
 import sys
+sys.path.append('..')
+
 from typing import Dict
 # flask imports for server implementation
 from flask import Flask, request, jsonify
@@ -17,7 +19,7 @@ import fastjsonschema
 from mars.action import Action
 from mars.actiontreelib import ActionTree
 
-sys.path.append('..')
+
 
 # validation schema
 validation_schema = {
@@ -58,6 +60,10 @@ carrier: Collection = mongoClient\
 def errorHandler(error):
     return jsonify(status='FAIL', error=str(error)), 404
 
+@server.errorhandler(400)
+def badRequestErrorHandler(error):
+    return jsonify(status='FAIL', error=str(error)), 400
+
 
 # jsonschema error handling
 @server.errorhandler(fastjsonschema.JsonSchemaException)
@@ -93,8 +99,11 @@ def seqMoveHandler():
     cursor: Cursor = carrier.aggregate(pipeline)
 
     process_tree = build_process_tree(cursor)
+
     sequence = process_tree.get_sequence()
-    return jsonify(status='SUCCES', result=sequence), 200
+    tree = process_tree.to_json()
+
+    return jsonify(status='SUCCESS', sequence=sequence, tree=tree), 200
 
 
 @server.route('/', methods=['GET'])
