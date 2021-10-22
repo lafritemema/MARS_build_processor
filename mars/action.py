@@ -1,7 +1,6 @@
 from enum import Enum, EnumMeta
 from typing import List, Dict, Optional
 
-from treelib.node import Node
 from mars.definition import Definition
 from mars.movement import Movement
 
@@ -283,7 +282,7 @@ class Action:
             int: action work order
         """
         return self.__work_order
-    
+
     @work_order.setter
     def work_order(self, nwork_order: int):
         if type(nwork_order) == int:
@@ -352,9 +351,11 @@ class Action:
             description = serialize_action['description']
 
             supstreamd = [serialise_dependences_obj[str(id)]
-                          for id in serialize_action['upstream_dependences']]
+                          for id
+                          in serialize_action['upstream_dependences']]
             sdownstreamd = [serialise_dependences_obj[str(id)]
-                            for id in serialize_action['downstream_dependences']]
+                            for id
+                            in serialize_action['downstream_dependences']]
 
             upstream_actions = Action.parseList(supstreamd,
                                                 serialise_dependences_obj)

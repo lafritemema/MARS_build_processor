@@ -218,7 +218,6 @@ class PositionCrt(Position):
             .__init__(pvector, PositionType.CARTESIAN,
                       e1, ['x', 'y', 'z', 'w', 'p', 'r'], config)
 
-
     @staticmethod
     def parse(serialize_crtpos: Dict) -> 'PositionCrt':
         e1 = serialize_crtpos['e1']
@@ -307,7 +306,7 @@ class Point:
         }
 
     def get_sequence(self) -> Dict:
-        
+
         path = proxyapi.PathCode[self.__path.name]
 
         return {

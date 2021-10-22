@@ -1,6 +1,3 @@
-import sys
-sys.path.append('..')
-
 from typing import Dict
 # flask imports for server implementation
 from flask import Flask, request, jsonify
@@ -18,8 +15,6 @@ import fastjsonschema
 
 from mars.action import Action
 from mars.actiontreelib import ActionTree
-
-
 
 # validation schema
 validation_schema = {
@@ -59,6 +54,7 @@ carrier: Collection = mongoClient\
 @server.errorhandler(404)
 def errorHandler(error):
     return jsonify(status='FAIL', error=str(error)), 404
+
 
 @server.errorhandler(400)
 def badRequestErrorHandler(error):
