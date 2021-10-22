@@ -1,5 +1,7 @@
 from enum import Enum, EnumMeta
 from typing import List, Dict, Optional
+
+from treelib.node import Node
 from mars.definition import Definition
 from mars.movement import Movement
 
@@ -152,7 +154,8 @@ class Action:
                  definition: Definition,
                  description: str,
                  upstream_dependences: Optional[List["Action"]] = [],
-                 downstream_dependences: Optional[List["Action"]] = []):
+                 downstream_dependences: Optional[List["Action"]] = [],
+                 work_order: int or None = None):
 
         """Action object initializer
 
@@ -173,6 +176,7 @@ class Action:
         self.__upstream_dependences: List["Action"] = upstream_dependences
         self.__downstream_dependences: List["Action"] = downstream_dependences
         self.__description: str = description
+        self.__work_order: int or None = work_order
 
     # getter and setters
     @property
@@ -272,6 +276,22 @@ class Action:
         raise ValueError("priority redefinition forbidden")
 
     @property
+    def work_order(self):
+        """ get the action work order, None if no work order
+
+        Returns:
+            int: action work order
+        """
+        return self.__work_order
+    
+    @work_order.setter
+    def work_order(self, nwork_order: int):
+        if type(nwork_order) == int:
+            self.__work_order = nwork_order
+        else:
+            raise TypeError("work order parameter must be an int")
+
+    @property
     def description(self) -> str:
         """ get the action description
 
@@ -322,6 +342,7 @@ class Action:
         for serialize_action in serialize_action_list:
             _type: EnumPriorityInterface = ActionType[serialize_action['type']]
             id = str(serialize_action['_id'])
+            work_order = serialize_action.get('work_order')
 
             if _type.definition_type == 'MOVE':
                 definition = Movement.parse(serialize_action['definition'])
@@ -346,16 +367,33 @@ class Action:
                             definition,
                             description,
                             upstream_actions,
-                            downstream_actions)
+                            downstream_actions,
+                            work_order)
 
             actions.append(action)
 
         return actions
 
+    def to_dict(self):
+
+        d_action = {
+            "_id": self.__id,
+            "type": self.__type.value[1],
+            "description": self.__description,
+            "definition": self.__definition.to_dict(),
+            "upstream_dependences": self.__upstream_dependences,
+            "downstream_dependences": self.__downstream_dependences
+        }
+
+        if self.__work_order:
+            d_action['work_order'] = self.__work_order
+
+        return d_action
+
     def get_sequence(self):
         sequence = {
-            "request_sequence": self.__definition.get_sequence(),
-            "type": self.__type.value,
+            "requestSequence": self.__definition.get_sequence(),
+            "type": self.__type.value[1],
             "description": self.__description
         }
 

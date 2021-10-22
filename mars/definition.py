@@ -13,3 +13,7 @@ class Definition:
     @abc.abstractmethod
     def get_sequence(self):
         return
+
+    @abc.abstractmethod
+    def to_dict(self):
+        return

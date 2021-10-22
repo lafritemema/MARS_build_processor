@@ -2,8 +2,6 @@ from typing import Dict, List
 from enum import Enum
 from copy import deepcopy
 
-from mars.definition import Definition
-
 
 class ProgramCode(Enum):
     TRAJ_GEN = 1
@@ -14,11 +12,16 @@ class Action(Enum):
     REQUEST = "REQUEST"
     WAIT = "WAIT"
 
+class PathCode(Enum):
+    JOINT = 1
+    LINEAR = 2
+    CIRCULAR = 3
 
 def utuf_set_request(uf, ut):
     data = {
         "action": Action.REQUEST.value,
-        "decription": "send user tool and user frame informations (NUMREG 18 et 19)",
+        "decription": "send user tool and user frame informations\
+                      (NUMREG 18 et 19)",
         "definition": {
             "method": "PUT",
             "api": "/numericRegister/block",
@@ -28,7 +31,9 @@ def utuf_set_request(uf, ut):
                 "type": "int"
             },
             "body": {
-                "values": [uf, ut]
+                "data": {
+                    "values": [uf, ut]
+                }
             }
         }
     }
@@ -39,8 +44,9 @@ def utuf_set_request(uf, ut):
 def launch_program_request(program_code: ProgramCode) -> List[Dict]:
     data = [{
                 "action": Action.REQUEST.value,
-                "decription": "send program to launch : {program} (NUM REG 1)".format(program=program_code.name),
-                "definition": { 
+                "decription": "send program to launch : {program} (NUM REG 1)"
+                              .format(program=program_code.name),
+                "definition": {
                     "method": "PUT",
                     "api": "/numericRegister/single",
                     "query": {
@@ -48,12 +54,40 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
                         "type": "int"
                     },
                     "body": {
-                        "value": program_code.value
+                        "data": {
+                            "value": program_code.value
+                            }
+                        }
+                    }
+            },
+            {
+                "action": Action.REQUEST.value,
+                "decription": "init tracker to alert for value 0\
+                    on program register (NUM REG 1)",
+                "definition": {
+                    "method": "SUBSCRIBE",
+                    "api": "/numericRegister/single",
+                    "query": {
+                        "reg": 1,
+                        "type": "int"
+                    },
+                    "body": {
+                        "setting": {
+                            "type": "tracker",
+                            "settings": {
+                                "tracker": "alert",
+                                "value": {
+                                    "value": 0
+                                },
+                                "interval": 1000,
+                                "id": "trackernum"
+                            }
+                        }
                     }
                 }
             },
             {
-                "action": Action. WAIT.value,
+                "action": Action.WAIT.value,
                 "decription": "wait program execution end",
                 "definition": {}
             }]
@@ -109,7 +143,9 @@ def possettings_set_request(pos_settings: List[int]) -> Dict or List[Dict]:
                 "type": "int"
             },
             "body": {
-                "values": None
+                "data": {
+                    "values": None
+                }
             }
         }
     }
@@ -124,7 +160,7 @@ def possettings_set_request(pos_settings: List[int]) -> Dict or List[Dict]:
             psdata = deepcopy(data)
             psdata['definition']['query']['startReg'] = i
             psdata['definition']['query']['blockSize'] = len(ps)
-            psdata['definition']['body']['values'] = ps
+            psdata['definition']['body']['data']['values'] = ps
             data_list.append(psdata)
             i += len(ps)
 
@@ -132,7 +168,7 @@ def possettings_set_request(pos_settings: List[int]) -> Dict or List[Dict]:
     else:
         data['definition']['query']['startReg'] = 20
         data['definition']['query']['blockSize'] = len(pos_settings)
-        data['definition']['body']['values'] = pos_settings
+        data['definition']['body']['data']['values'] = pos_settings
         return data
 
 
@@ -148,7 +184,9 @@ def position_set_request(position: Dict):
                     "type": position['type']
                 },
                 "body": {
-                    "position": position
+                    "data": {
+                        "position": position
+                    }
                 }
             }
         }
@@ -169,7 +207,9 @@ def positions_set_request(positions: List[Dict]):
                 "type": positions[0]['type']
             },
             "body": {
-                "positions": None
+                "data": {
+                    "positions": None
+                }
             }
         }
     }
@@ -184,7 +224,7 @@ def positions_set_request(positions: List[Dict]):
             psdata = deepcopy(data)
             psdata['definition']['query']['startReg'] = i
             psdata['definition']['query']['blockSize'] = len(ps)
-            psdata['definition']['body']['positions'] = ps
+            psdata['definition']['body']['data']['positions'] = ps
             data_list.append(psdata.copy())
             i += len(ps)
 
@@ -192,5 +232,5 @@ def positions_set_request(positions: List[Dict]):
     else:
         data['definition']['query']['startReg'] = 1
         data['definition']['query']['blockSize'] = len(positions)
-        data['definition']['body']['positions'] = positions
+        data['definition']['body']['data']['positions'] = positions
         return data

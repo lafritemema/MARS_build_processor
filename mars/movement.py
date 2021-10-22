@@ -99,17 +99,16 @@ class Configuration:
 
         return Configuration(wrist, forearm, arm, j4, j5, j6)
 
-    def get_sequence(self):
-        sequence = {
-            "wrist": self.__wrist.value,
-            "forearm": self.__forearm.value,
-            "arm": self.__arm.value,
+    def to_dict(self):
+        return {
+            "wrist": self.__wrist.name,
+            "forearm": self.__forearm.name,
+            "arm": self.__arm.name,
             "j4": self.__j4,
             "j5": self.__j5,
             "j6": self.__j6
         }
 
-        return sequence
 
 class Position:
 
@@ -117,11 +116,14 @@ class Position:
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, pvector: np.array,
+    def __init__(self,
+                 pvector: np.array,
                  ptype: PositionType,
                  e1: int,
                  vector_keys: List[str],
-                 config: Configuration = None) -> 'Position':
+                 config: Configuration = None,
+                 ut: int = 0,
+                 uf: int = 0) -> 'Position':
         """
         Position object initializer
 
@@ -137,6 +139,8 @@ class Position:
         self.__config: Configuration = config
         self.__e1: int = e1
         self.__vector_keys = vector_keys
+        self.__ut = ut
+        self.__uf = uf
 
     @property
     def vector(self):
@@ -175,20 +179,17 @@ class Position:
             Dict: dictionnary with Position object informations
         """
 
-        p_dict = dict((key.replace('_Position', ''), val)
-                      for (key, val) in self.__dict__.copy().items())
-        p_dict['_vector'] = self.__vector_to_dict()
-
-        return p_dict
-
-    def get_sequence(self):
-        sequence = {
-            "type": self.__type.value,
+        return {
+            "ut": self.__ut,
+            "uf": self.__uf,
+            "type": self.__type.name,
             "e1": self.__e1,
             "vector": self.__vector_to_dict(),
-            "config": self.__config.get_sequence() if self.__config else None
+            "config": self.__config.to_dict() if self.__config else None
         }
-        return sequence
+
+    def get_sequence(self):
+        return self.to_dict()
 
     def __vector_to_dict(self):
         tl = [(self.__vector_keys[i], float(val))
@@ -216,19 +217,6 @@ class PositionCrt(Position):
         super(PositionCrt, self)\
             .__init__(pvector, PositionType.CARTESIAN,
                       e1, ['x', 'y', 'z', 'w', 'p', 'r'], config)
-
-    '''def to_dict(self) -> Dict:
-        """ get a dictionnary describing the cartesian position object
-
-        Returns:
-            Dict: dictionnary with Position object informations
-        """
-
-        p_dict = dict((key.replace('_Position', ''), val)
-                      for (key, val) in self.__dict__.copy().items())
-        p_dict['_vector'] = self.__vector_to_dict()
-
-        return p_dict'''
 
 
     @staticmethod
@@ -263,19 +251,6 @@ class PositionJoint(Position):
         super(PositionJoint, self)\
             .__init__(pvector, PositionType.JOINT, e1,
                       ['j1', 'j2', 'j3', 'j4', 'j5', 'j6'])
-
-    def to_dict(self) -> Dict:
-        """ get a dictionnary describing the cartesian position object
-
-        Returns:
-            Dict: dictionnary with Position object informations
-        """
-
-        p_dict = dict((key.replace('_Position', ''), val)
-                      for (key, val) in self.__dict__.copy().items())
-        p_dict['_vector'] = self.__vector_to_dict()
-        return p_dict
-
 
     @staticmethod
     def parse(serialize_jntpos: Dict) -> 'PositionJoint':
@@ -323,15 +298,17 @@ class Point:
 
         return Point(cnt, speed, path, position)
 
+    def to_dict(self):
+        return {
+            "cnt": self.__cnt,
+            "speed": self.__speed,
+            "position": self.__position.to_dict(),
+            "path": self.__path.name
+        }
+
     def get_sequence(self) -> Dict:
-        if self.__path == Path.JOINT:
-            path = 1
-        elif self.__path == Path.LINEAR:
-            path = 2
-        elif self.__path == Path.CIRCULAR:
-            path = 3
-        else:
-            raise Exception('path not valid or not implemented yet')
+        
+        path = proxyapi.PathCode[self.__path.name]
 
         return {
             "settings": [path, self.__speed, self.__cnt],
@@ -366,6 +343,13 @@ class Movement(Definition):
 
         return Movement(uf, ut, points)
 
+    def to_dict(self):
+        return {
+            "uf": self._uf,
+            "ut": self._ut,
+            "points": [p.to_dict() for p in self._points]
+        }
+
     def get_sequence(self):
         # first info in setting -> nbr of pos register write
         points_settings = [len(self._points)]
@@ -375,7 +359,6 @@ class Movement(Definition):
             p_para = p.get_sequence()
             points_parameters.append(p_para['position'])
             points_settings.extend(p_para['settings'])
-
 
         # if only one point -> position_set_request else positions_set_request
         if len(points_parameters) > 1:
@@ -396,16 +379,19 @@ class Movement(Definition):
         # second stage set num reg 1 to launch change UTUF program
         # and wait for program end
         # return list so sequence extend
-        sequence.extend(proxyapi.launch_program_request(proxyapi.ProgramCode.CHANGE_UTUF))
-        
+        sequence.extend(proxyapi
+                        .launch_program_request(proxyapi
+                                                .ProgramCode.CHANGE_UTUF))
 
-        # third stage set numeric register 20 to X update position settings (speed, path ...)
-        if(type(possettings_set_request) == list):
+        # third stage set numeric register 20 to X
+        # update position settings (speed, path ...)
+        if (type(possettings_set_request) == list):
             sequence.extend(possettings_set_request)
         else:
             sequence.append(possettings_set_request)
 
-        # fourth stage set position register 20 to X update position settings (speed, path ...)
+        # fourth stage set position register 20 to X
+        # update position settings (speed, path ...)
         if(type(position_set_request) == list):
             sequence.extend(position_set_request)
         else:

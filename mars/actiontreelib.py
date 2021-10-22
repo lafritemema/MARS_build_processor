@@ -92,6 +92,10 @@ class ActionNode(Node):
         return True if self.priority == node.priority else False
 
     @property
+    def sort_key(self):
+        return self.data.work_order
+
+    @property
     def priority(self) -> int:
         """ get the action priority
 
