@@ -1,0 +1,98 @@
+{
+  "schemas": {
+    "getSequenceRequest": {
+      "schema": {
+        "$id": "getSequenceRequest",
+        "type": "object",
+        "properties": {
+          "actionType": {
+            "type": "string",
+            "enum": ["station", "approach", "work"]
+          },
+          "elements": {
+            "type": "string",
+            "enum": ["rail", "fastener"]
+          },
+          "reference": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "allOf": [{
+            "if": {
+              "properties": {
+                "actionType": {
+                  "const": "station"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "element": {
+                  "const": "rail"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "actionType": {
+                  "const": "approach"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "element": {
+                  "const": "rail"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "actionType": {
+                  "const": "work"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "element": {
+                  "const": "fastener"
+                },
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "element": {
+                      "type": "string",
+                      "enum": ["rail"]
+                    },
+                    "id": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "required": ["element", "id"]
+                }
+              }
+            }
+          }
+        ],
+        "required": ["actionType", "element"]
+      }
+    }
+  }
+}

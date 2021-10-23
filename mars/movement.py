@@ -307,7 +307,7 @@ class Point:
 
     def get_sequence(self) -> Dict:
 
-        path = proxyapi.PathCode[self.__path.name]
+        path = proxyapi.PathCode[self.__path.name].value
 
         return {
             "settings": [path, self.__speed, self.__cnt],

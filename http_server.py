@@ -1,4 +1,7 @@
 from typing import Dict
+from enum import Enum
+import json
+import sys
 # flask imports for server implementation
 from flask import Flask, request, jsonify
 
@@ -16,23 +19,22 @@ import fastjsonschema
 from mars.action import Action
 from mars.actiontreelib import ActionTree
 
-# validation schema
-validation_schema = {
-  "type": "object",
-  "properties": {
-    "type": {
-      "type": "string",
-      "enum": ["rail", "fastener"]
-    },
-    "id": {
-      "type": "array",
-      "items": {
-          "type": ["string", "number"]
-      }
-    }
-  },
-  "required": ["type", "id"]
-}
+
+class ActionType(Enum):
+    station = 'MOVE.STATION.WORK'
+    approach = 'MOVE.ARM.APPROACH'
+    work = 'MOVE.ARM.WORK'
+
+
+try:
+    # validation schema
+    with open('./validation_schema.json', 'r') as schfile:
+        schstr = schfile.read()
+        validation_schema = json.loads(schstr)
+except:
+    print("error on schema validation loading")
+    sys.exit(1)
+
 
 # get the server configuration
 server_config = Config('server.cfg')
@@ -86,11 +88,7 @@ def seqMoveHandler():
     validate = fastjsonschema.compile(validation_schema)
     validate(body)
 
-    action_type = "MOVE.ARM.WORK"\
-                  if body['type'] == "fastener"\
-                  else "MOVE.ARM.APPROACH"
-
-    pipeline = build_aggregation_pipeline(action_type, body)
+    pipeline = build_aggregation_pipeline(body)
 
     cursor: Cursor = carrier.aggregate(pipeline)
 
@@ -117,7 +115,7 @@ def build_process_tree(cursor: Cursor):
         process_tree.add_branch_for_action(a)
 
     print("action tree generated")
-    process_tree.show()
+    process_tree.show(key=lambda node : node.sort_key if node.sort_key else 9999)
     return process_tree
 
 
@@ -136,13 +134,27 @@ def extract_dependences(cmdCursor: Cursor):
     return rootActions, allDependences
 
 
-def build_aggregation_pipeline(action_type: str, body: Dict):
+def build_aggregation_pipeline(reqbody: Dict):
+
+    match = {
+        "type": ActionType[reqbody['actionType']].value,
+        'product_reference.designation': reqbody['element']
+    }
+
+    id = reqbody.get('id')
+    reference = reqbody.get('reference')
+    location = reqbody.get('location')
+
+    if id:
+        match["product_reference.id"] = {'$in': id}
+    if reference:
+        match["product_reference.reference"] = {'$in': reference}
+    if location:
+        match["product_reference.parent.designation"] = location['element']
+        match["product_reference.parent.id"] = {"$in": location['id']}
+
     match_operation = {
-        "$match": {
-            "type": action_type,
-            "target.type": body['type'],
-            "target.id": {"$in": body['id']}
-        }
+        "$match": match
     }
 
     graphlookup_operation = {
