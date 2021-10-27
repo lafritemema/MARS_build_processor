@@ -393,6 +393,7 @@ class Action:
 
     def get_sequence(self):
         sequence = {
+            "id": self.__id,
             "requestSequence": self.__definition.get_sequence(),
             "type": self.__type.value[1],
             "description": self.__description

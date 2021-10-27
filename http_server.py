@@ -97,8 +97,7 @@ def seqMoveHandler():
 
     process_tree = build_process_tree(cursor)
 
-    sequence = process_tree.get_sequence()
-    tree = process_tree.to_json()
+    sequence, tree = process_tree.get_sequence()
 
     return jsonify(status='SUCCESS', sequence=sequence, tree=tree), 200
 
