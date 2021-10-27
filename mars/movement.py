@@ -189,7 +189,14 @@ class Position:
         }
 
     def get_sequence(self):
-        return self.to_dict()
+        return {
+            "ut": self.__ut,
+            "uf": self.__uf,
+            "type": self.__type.value,
+            "e1": self.__e1,
+            "vector": self.__vector_to_dict(),
+            "config": self.__config.to_dict() if self.__config else None
+        }
 
     def __vector_to_dict(self):
         tl = [(self.__vector_keys[i], float(val))

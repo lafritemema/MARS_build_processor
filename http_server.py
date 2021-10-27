@@ -2,6 +2,7 @@ from typing import Dict
 from enum import Enum
 import json
 import sys
+import pathlib
 # flask imports for server implementation
 from flask import Flask, request, jsonify
 
@@ -19,6 +20,8 @@ import fastjsonschema
 from mars.action import Action
 from mars.actiontreelib import ActionTree
 
+file_folder = pathlib.Path(__file__).parent.absolute()
+print(file_folder)
 
 class ActionType(Enum):
     station = 'MOVE.STATION.WORK'
@@ -26,18 +29,18 @@ class ActionType(Enum):
     work = 'MOVE.ARM.WORK'
 
 
-try:
+# try:
     # validation schema
-    with open('./validation_schema.json', 'r') as schfile:
-        schstr = schfile.read()
-        validation_schema = json.loads(schstr)
-except:
-    print("error on schema validation loading")
-    sys.exit(1)
+with open(str(file_folder)+'/validation_schema.json', 'r') as schfile:
+    schstr = schfile.read()
+    validation_schema = json.loads(schstr)
+# except:
+    # print("error on schema validation loading")
+    # sys.exit(1)
 
 
 # get the server configuration
-server_config = Config('server.cfg')
+server_config = Config(str(file_folder) + '/server.cfg')
 
 # instanciate flask server
 server = Flask(__name__)

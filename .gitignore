@@ -3,6 +3,7 @@
 .dist
 notebooks/test_notebook.ipynb
 notebooks/build_processor_new.ipynb
-notebooks/data
-server/__pycache__
+notebooks/data/*
+!/notebooks/data/C35_web_5mm.csv
+__pycache__
 mars/__pycache__
