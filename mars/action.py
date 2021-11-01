@@ -1,8 +1,10 @@
 from enum import Enum, EnumMeta
+from os import stat
 from typing import List, Dict, Optional
 
 from mars.definition import Definition
 from mars.movement import Movement
+from mars.tool import ToolManipulation
 
 
 class EnumLevelInterface(EnumMeta):
@@ -73,33 +75,36 @@ class EnumPriorityInterface(Enum, metaclass=EnumLevelInterface):
 
 class ActionArmMove(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration MOVE.ARM with 3 modes : APPROACH CLEARANCE WORK
-    APPROACH = (50, 'MOVE.ARM.APPROACH')
-    CLEARANCE = (50, 'MOVE.ARM.CLEARANCE')
-    WORK = (60, 'MOVE.ARM.WORK')
+    APPROACH = (60, 'MOVE.ARM.APPROACH')
+    CLEARANCE = (60, 'MOVE.ARM.CLEARANCE')
+    WORK = (70, 'MOVE.ARM.WORK')
 
 
 class ActionStationMove(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration MOVE.STATION with 2 modes : WORK HOME
-    WORK = (40, 'MOVE.STATION.WORK')
-    HOME = (39, 'MOVE.STATION.HOME')
+    WORK = (50, 'MOVE.STATION.WORK')
+    TOOL = (20, 'MOVE.STATION.TOOL')
+    # LOAD_TOOL = (20, 'MOVE.STATION.LOAD_TOOL')
+    # UNLOAD_TOOL = (20, 'MOVE.STATION.UNLOAD_TOOL')
+    HOME = (10, 'MOVE.STATION.HOME')
 
 
 class ActionWork(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration WORK with 2 modes : DRILL FASTEN
-    DRILL = (70, 'WORK.DRILL')
-    FASTEN = (80, 'WORK.FASTEN')
+    DRILL = (80, 'WORK.DRILL')
+    FASTEN = (90, 'WORK.FASTEN')
 
 
 class ActionLoad(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration LOAD with 2 elements EFFECTOR TOOL
-    EFFECTOR = (20, 'LOAD.EFFECTOR')
-    TOOL = (30, 'LOAD.TOOL')
+    EFFECTOR = (30, 'LOAD.EFFECTOR')
+    TOOL = (40, 'LOAD.TOOL')
 
 
 class ActionUnload(EnumPriorityInterface, metaclass=EnumLevelInterface):
     # enumeration UNLOAD with 2 elements EFFECTOR TOOL
-    EFFECTOR = (20, 'UNLOAD.EFFECTOR')
-    TOOL = (30, 'UNLOAD.TOOL')
+    EFFECTOR = (30, 'UNLOAD.EFFECTOR')
+    TOOL = (40, 'UNLOAD.TOOL')
 
 
 class ActionMove(Enum, metaclass=EnumLevelInterface):
@@ -114,6 +119,40 @@ class ActionType(Enum, metaclass=EnumLevelInterface):
     UNLOAD = ActionUnload
     MOVE = ActionMove
     WORK = ActionWork
+
+
+class DependenceType(Enum):
+    UPSTREAM = "UPSTREAM"
+    DOWNSTREAM = "DOWNSTREAM"
+
+
+class Dependence:
+    def __init__(self, action: 'Action', dtype: DependenceType) -> None:
+        self.__action = action
+        self.__dtype = dtype
+
+    @property
+    def action(self):
+        return self.__action
+    
+    @property
+    def dependence_type(self):
+        return self.__dtype
+
+    def to_dict(self):
+        return {
+            "action": self.__action.to_dict(),
+            "type": self.__dtype.value
+        }
+
+    @staticmethod
+    def parse(serialize_dep: Dict, serialise_dependences_obj: Dict):
+        dep_action_id = str(serialize_dep['action'])
+        ser_action = serialise_dependences_obj[dep_action_id]
+        action = Action.parse(ser_action, serialise_dependences_obj)
+
+        dtype = DependenceType[serialize_dep['type']]
+        return Dependence(action, dtype)
 
 
 # action object
@@ -152,8 +191,9 @@ class Action:
                  atype: ActionType,
                  definition: Definition,
                  description: str,
-                 upstream_dependences: Optional[List["Action"]] = [],
-                 downstream_dependences: Optional[List["Action"]] = [],
+                 dependences: Optional[List[Dependence]]=[],
+                 # upstream_dependences: Optional[List["Action"]] = [],
+                 # downstream_dependences: Optional[List["Action"]] = [],
                  work_order: int or None = None):
 
         """Action object initializer
@@ -172,8 +212,9 @@ class Action:
         self.__id: str = id
         self.__type: ActionType = atype
         self.__definition: Definition = definition
-        self.__upstream_dependences: List["Action"] = upstream_dependences
-        self.__downstream_dependences: List["Action"] = downstream_dependences
+        self.__dependences: List[Dependence] = dependences
+        # self.__upstream_dependences: List["Action"] = upstream_dependences
+        # self.__downstream_dependences: List["Action"] = downstream_dependences
         self.__description: str = description
         self.__work_order: int or None = work_order
 
@@ -192,7 +233,7 @@ class Action:
         """ function to avoid id redefinition
         """
         raise ValueError("id redefinition forbidden")
-
+    '''
     @property
     def upstream_dependences(self) -> List['Action']:
         """ get the list of upstream_dependences actions
@@ -228,6 +269,15 @@ class Action:
             nl (List[Action]): new dependences actions list
         """
         self.__downstream_dependences = nl
+    '''
+
+    @property
+    def dependences(self) -> List[Dependence]:
+        return self.__dependences
+
+    @dependences.setter
+    def dependences(self, ndependences: List[Dependence]):
+        self.__dependences = ndependences
 
     @property
     def type(self) -> str:
@@ -307,7 +357,8 @@ class Action:
         Args:
             ndesc (str): new action description
         """
-
+        self.__description = ndesc
+    '''
     # methods
     def add_upstream_dependence(self, action: 'Action'):
         """ add a new action in the upstream_dependence list
@@ -324,6 +375,7 @@ class Action:
             action (Action): new action
         """
         self.__downstream_dependences.append(action)
+    '''
 
     def __repr__(self) -> str:
         """ overload the __repr__ function
@@ -331,7 +383,11 @@ class Action:
             str: human readeable representation of Action
         """
         return self.__description
+    
+    def add_dependence(self, dependance: Dependence) -> None:
+        self.__dependences.append(dependance)
 
+    '''
     @staticmethod
     def parseList(serialize_action_list: List[Dict],
                   serialise_dependences_obj: object) -> List['Action']:
@@ -345,11 +401,13 @@ class Action:
 
             if _type.definition_type == 'MOVE':
                 definition = Movement.parse(serialize_action['definition'])
+            elif _type.definition_type == "LOAD" or _type.definition_type == "UNLOAD":
+                definition = ToolManipulation.parse(serialize_action['definition'])
             else:
                 raise Exception("default on Action parsing")
 
             description = serialize_action['description']
-
+            
             supstreamd = [serialise_dependences_obj[str(id)]
                           for id
                           in serialize_action['upstream_dependences']]
@@ -362,6 +420,7 @@ class Action:
 
             downstream_actions = Action.parseList(sdownstreamd,
                                                   serialise_dependences_obj)
+            
 
             action = Action(id,
                             _type,
@@ -374,6 +433,32 @@ class Action:
             actions.append(action)
 
         return actions
+    '''
+
+    @staticmethod
+    def parse(serialize_action: Dict,
+              serialise_dependences_obj: Dict) -> 'Action':
+        _type: EnumPriorityInterface = ActionType[serialize_action['type']]
+        id = str(serialize_action['_id'])
+        work_order = serialize_action.get('work_order')
+
+        if _type.definition_type == 'MOVE':
+            definition = Movement.parse(serialize_action['definition'])
+        elif _type.definition_type == "LOAD" or _type.definition_type == "UNLOAD":
+            definition = ToolManipulation.parse(serialize_action['definition'])
+        else:
+            raise Exception("default on Action parsing")
+
+        description = serialize_action['description']
+
+        dependences = [Dependence.parse(ser_dep, serialise_dependences_obj)\
+                       for ser_dep in serialize_action['dependences']]
+
+        return Action(id, _type,
+                      definition,
+                      description,
+                      dependences,
+                      work_order)
 
     def to_dict(self):
 
@@ -382,8 +467,9 @@ class Action:
             "type": self.__type.value[1],
             "description": self.__description,
             "definition": self.__definition.to_dict(),
-            "upstream_dependences": self.__upstream_dependences,
-            "downstream_dependences": self.__downstream_dependences
+            "dependences": [d.to_dict() for d in self.__dependences]
+            # "upstream_dependences": self.__upstream_dependences,
+            # "downstream_dependences": self.__downstream_dependences
         }
 
         if self.__work_order:

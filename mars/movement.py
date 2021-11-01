@@ -380,14 +380,14 @@ class Movement(Definition):
         sequence = []
 
         # first stage set uf and ut
-        sequence.append(proxyapi.utuf_set_request(self._uf, self._ut))
+        # sequence.append(proxyapi.utuf_set_request(self._uf, self._ut))
 
         # second stage set num reg 1 to launch change UTUF program
         # and wait for program end
         # return list so sequence extend
-        sequence.extend(proxyapi
-                        .launch_program_request(proxyapi
-                                                .ProgramCode.CHANGE_UTUF))
+        # sequence.extend(proxyapi
+        #                .launch_program_request(proxyapi
+        #                                        .ProgramCode.CHANGE_UTUF))
 
         # third stage set numeric register 20 to X
         # update position settings (speed, path ...)

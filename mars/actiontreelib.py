@@ -2,25 +2,7 @@
 from mars.action import Action
 from treelib import Tree, Node
 from typing import List
-
-
-class Dependencies:
-
-    @staticmethod
-    def listDependences(action):
-        alist = Dependencies.__listDependences(action, action.priority)
-        alist.sort(key=lambda item: item[0])
-        return [a[1] for a in alist]
-        # return alist
-
-    @staticmethod
-    def __listDependences(action, dn=0):
-        alist = [(dn, action)]
-        for a in action.upstream_dependences:
-            alist.extend(Dependencies.__listDependences(a, a.priority))
-        for a in action.downstream_dependences:
-            alist.extend(Dependencies.__listDependences(a, 9999-a.priority))
-        return alist
+from mars.action import DependenceType
 
 
 class ActionNode(Node):
@@ -33,7 +15,7 @@ class ActionNode(Node):
         the action priority
 
     """
-    def __init__(self, action: Action = None) -> 'ActionNode':
+    def __init__(self, action: Action = None, is_global: bool= False) -> 'ActionNode':
         """ActionNode initializer
 
         Args:
@@ -49,10 +31,17 @@ class ActionNode(Node):
             if no action, 'root' as name and 0 as id.
         '''
 
-        super(ActionNode, self)\
-            .__init__(action.description if action else 'root',
-                      action.id if action else 0,
-                      data=action)
+        super(ActionNode, self).__init__()
+        
+        if action:
+            self.data = action
+            self.tag = action.description
+            if not is_global:
+                self.identifier = action.id
+        else:
+            self.tag = 'root'
+            self.identifier = 0
+
 
     def __lt__(self, node: 'ActionNode') -> bool:
 
@@ -108,6 +97,41 @@ class ActionNode(Node):
         else:
             return 0
 
+    @property
+    def action_type(self) -> str or None:
+        if self.data:
+            return self.data.type
+        else:
+            return None
+
+def getDependences(action):
+    alist = listDependences(action, action.priority)
+    alist.sort(key=lambda item: item[0])
+    return [a[1] for a in alist]
+    # return alist
+
+
+def listDependences(action, dn=0):
+    alist = [(dn, action)]
+    for dep in action.dependences:
+        if dep.dependence_type == DependenceType.UPSTREAM :
+            alist.extend(listDependences(dep.action, dep.action.priority))
+        elif dep.dependence_type == DependenceType.DOWNSTREAM :
+            alist.extend(listDependences(dep.action, 9999-dep.action.priority))
+        else :
+            raise Exception("unknow dependence type")
+    return alist
+
+'''
+def listDependences(action, dn=0):
+    alist = [(dn, action)]
+    for a in action.upstream_dependences:
+        alist.extend(Dependencies.__listDependences(a, a.priority))
+    for a in action.downstream_dependences:
+        alist.extend(Dependencies.__listDependences(a, 9999-a.priority))
+    return alist
+'''
+
 
 class ActionTree(Tree):
     """ class used to represent a tree containing ActionNode.
@@ -122,7 +146,7 @@ class ActionTree(Tree):
         # add a root ActionNode in the tree
         self.add_node(ActionNode())
 
-    def __add_action_node(self, action_node: ActionNode, parent: ActionNode):
+    def add_action_node(self, action_node: ActionNode, parent: ActionNode or None):
         """ add an ActionNode in the tree if not allready exist
         (id already present)
 
@@ -134,8 +158,9 @@ class ActionTree(Tree):
         # if the ActionNode not alread in the tree, add the ActionNode
         if not self.contains(action_node.identifier):
             self.add_node(action_node, parent=parent)
+        
 
-    def __add_action_nodes(self, actions: List[ActionNode]):
+    def add_action_nodes(self, actions: List[ActionNode]):
         """ add list of actions
 
         Args:
@@ -147,7 +172,7 @@ class ActionTree(Tree):
 
         for an in action_nodes:
             parent = self.__getParent(an, current)
-            self.__add_action_node(an, parent)
+            self.add_action_node(an, parent)
             current = an
 
     def __getParent(self, actual_node: ActionNode, previous_node: ActionNode):
@@ -165,11 +190,11 @@ class ActionTree(Tree):
         return parent
 
     def add_branch_for_action(self, branch_end: Action):
-        dl = Dependencies.listDependences(branch_end)
-        self.__add_action_nodes(dl)
+        dl = getDependences(branch_end)
+        self.add_action_nodes(dl)
 
     def get_sequence(self):
-        expanded = self.expand_tree(key=lambda node : node.sort_key if node.sort_key else 9999)
+        expanded = self.expand_tree(key=lambda node: node.sort_key if node.sort_key else 9999)
         sequence = [self.get_node(nid).data for nid in expanded]
         sequence.remove(None)
         tree = [{'id': d.id, 'description': d.description} for d in sequence]

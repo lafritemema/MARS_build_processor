@@ -1,7 +1,7 @@
 from typing import Dict
 from enum import Enum
 import json
-import sys
+
 import pathlib
 # flask imports for server implementation
 from flask import Flask, request, jsonify
@@ -18,10 +18,11 @@ from config import Config
 import fastjsonschema
 
 from mars.action import Action
-from mars.actiontreelib import ActionTree
+from mars.actiontreelib import ActionTree, ActionNode
 
 file_folder = pathlib.Path(__file__).parent.absolute()
 print(file_folder)
+
 
 class ActionType(Enum):
     station = 'MOVE.STATION.WORK'
@@ -98,7 +99,6 @@ def seqMoveHandler():
     process_tree = build_process_tree(cursor)
 
     sequence, tree = process_tree.get_sequence()
-
     return jsonify(status='SUCCESS', sequence=sequence, tree=tree), 200
 
 
@@ -110,30 +110,85 @@ def baseHandler():
 
 
 def build_process_tree(cursor: Cursor):
-    rootActions, dependences = extract_dependences(cursor)
-    actions = Action.parseList(rootActions, dependences)
+    # extract dependences from cursor
+    root_actions, dependences, global_actions = extract_actions(cursor)
+    actions = [Action.parse(ra, dependences) for ra in root_actions]
+    # actions = Action.parseList(rootActions, dependences)
+
     process_tree = ActionTree()
     for a in actions:
         process_tree.add_branch_for_action(a)
 
     print("action tree generated")
+
+    # create and insert global actions
+    # create global actions
+    go_load_tool_pos = Action.parse(global_actions['load_tool_position'], dependences)
+    go_home = Action.parse(global_actions['home'], dependences)
+
+    # insert go load tool position action before load and unload actions
+    # list of targeted actions
+    lul_action_types = ['LOAD.EFFECTOR', 'UNLOAD.EFFECTOR']
+    # filter the tree to localize the actions => return a filter generator
+    load_unload_nodes = process_tree.filter_nodes(lambda node: node.action_type in lul_action_types)
+    # transform the filter to list
+    load_unload_nodes = list(load_unload_nodes)
+
+    # iteration to insert go load tool position action
+    for lul_node in load_unload_nodes:
+        # get the targeted node
+        tnode = process_tree.get_node(lul_node.identifier)
+        # get its parent
+        tnode_parent = process_tree.parent(lul_node.identifier)
+        # create the go to load tool position action as a global action
+        load_tool_node = ActionNode(go_load_tool_pos, is_global=True)
+        # insert the node in the tree as a tnode_parent children
+        process_tree.add_action_node(load_tool_node, parent=tnode_parent)
+        #move the targeted node as a go load tool children
+        process_tree.move_node(tnode.identifier, load_tool_node.identifier)
+
+    # insert a go home and return home node
+    # get the root node
+    root_node = process_tree.get_node(0)
+    # get the root node children
+    root_node_children = process_tree.children(0)
+    # create a go home and return home action node
+    go_home_node = ActionNode(go_home, is_global=True)
+    return_home_node = ActionNode(go_home, is_global=True)
+
+    # insert the go home node in root
+    process_tree.add_action_node(go_home_node, parent=root_node)
+
+    # move all the root children in go_home node
+    for ch in root_node_children:
+        process_tree.move_node(ch.identifier, go_home_node.identifier)
+
+    # insert the return home node in root
+    process_tree.add_action_node(return_home_node, parent=root_node)
+
     process_tree.show(key=lambda node : node.sort_key if node.sort_key else 9999)
     return process_tree
 
 
-def extract_dependences(cmdCursor: Cursor):
-    allDependences = {}
-    rootActions = []
+def extract_actions(cmdCursor: Cursor):
+
+    global_ids = ['home', 'load_tool_position']
+
+    dependences = {}
+    global_actions = {}
+    root_actions = []
     for doc in cmdCursor:
-        if 'dependences' in doc:
-            for dep in doc['dependences']:
-                if not dep['_id'] in allDependences:
-                    allDependences[str(dep['_id'])] = dep
+        if doc['_id'] in global_ids:
+            global_actions[doc['_id']] = doc
+        else:
+            if 'graphLookUp' in doc:
+                for dep in doc['graphLookUp']:
+                    if not dep['_id'] in dependences:
+                        dependences[str(dep['_id'])] = dep
+            del doc['graphLookUp']
+            root_actions.append(doc)
 
-        del doc['dependences']
-        rootActions.append(doc)
-
-    return rootActions, allDependences
+    return root_actions, dependences, global_actions
 
 
 def build_aggregation_pipeline(reqbody: Dict):
@@ -156,58 +211,25 @@ def build_aggregation_pipeline(reqbody: Dict):
         match["product_reference.parent.id"] = {"$in": location['id']}
 
     match_operation = {
-        "$match": match
+        "$match": {'$or': [
+                match, {
+                    '_id':{
+                        '$in': ['home', 'load_tool_position']
+                    }
+                }
+            ]
+        }
     }
 
     graphlookup_operation = {
         "$graphLookup": {
             "from": "carrier",
-            "startWith": "$upstream_dependences",
-            "connectFromField": "upstream_dependences",
+            "startWith": "$dependences.action",
+            "connectFromField": "dependences.action",
             "connectToField": "_id",
-            "as": "upstreamOperations"
+            "as": "graphLookUp"
         }
     }
 
-    direct_lookup_operation = {
-        "$lookup": {
-            "from": "carrier",
-            "localField": "downstream_dependences",
-            "foreignField": "_id",
-            "as": "directDownstreamOperations"
-        }
-    }
-
-    lookup_operation = {
-        "$lookup": {
-            "from": "carrier",
-            "localField": "upstreamOperations.downstream_dependences",
-            "foreignField": "_id",
-            "as": "downstreamOperations"
-        }
-    }
-
-    concat_reverse = {
-        "$set": {
-            "dependences": {
-                "$concatArrays": [
-                    "$downstreamOperations",
-                    "$directDownstreamOperations",
-                    "$upstreamOperations"]
-            }
-        }
-    }
-
-    unset_operation = {
-         "$unset": [
-            "downstreamOperations",
-            "directDownstreamOperations",
-            "upstreamOperations"]
-    }
-
-    return [match_operation,
-            graphlookup_operation,
-            direct_lookup_operation,
-            lookup_operation,
-            concat_reverse,
-            unset_operation]
+    
+    return [match_operation, graphlookup_operation]
