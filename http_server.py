@@ -97,8 +97,9 @@ def seqMoveHandler():
     cursor: Cursor = carrier.aggregate(pipeline)
 
     process_tree = build_process_tree(cursor)
+    sequence = process_tree.get_sequence()
+    tree = generate_desc(sequence)
 
-    sequence, tree = process_tree.get_sequence()
     return jsonify(status='SUCCESS', sequence=sequence, tree=tree), 200
 
 
@@ -108,6 +109,23 @@ def baseHandler():
     print(data)
     return "ok"
 
+
+def generate_desc(sequence:list):
+    # suppression du la premier et dernier element (home)
+    final_sequence = []
+    seq = sequence[1:-1]
+    load_tool_filter = filter(lambda a: a['type'] == 'MOVE.STATION.TOOL', seq)
+
+    if len(list(load_tool_filter)) > 0:
+        gen = sequence_gen(seq[1:])
+
+        for extract_seq in gen:
+            desc = [{"id": action['id'], "description": action["description"]} for action in extract_seq]
+            final_sequence.append(desc)
+
+        return final_sequence
+    else:
+        return seq
 
 def build_process_tree(cursor: Cursor):
     # extract dependences from cursor
@@ -134,18 +152,29 @@ def build_process_tree(cursor: Cursor):
     # transform the filter to list
     load_unload_nodes = list(load_unload_nodes)
 
+    prev_node_actype = None
+    prev_loadtool_node_id = None
+
     # iteration to insert go load tool position action
     for lul_node in load_unload_nodes:
         # get the targeted node
-        tnode = process_tree.get_node(lul_node.identifier)
-        # get its parent
-        tnode_parent = process_tree.parent(lul_node.identifier)
-        # create the go to load tool position action as a global action
-        load_tool_node = ActionNode(go_load_tool_pos, is_global=True)
-        # insert the node in the tree as a tnode_parent children
-        process_tree.add_action_node(load_tool_node, parent=tnode_parent)
-        #move the targeted node as a go load tool children
-        process_tree.move_node(tnode.identifier, load_tool_node.identifier)
+        # tnode = process_tree.get_node(lul_node.identifier)
+        if lul_node.action_type == 'LOAD.EFFECTOR':
+            if prev_node_actype:
+                if not prev_node_actype == 'UNLOAD.EFFECTOR':
+                    load_tool_id = insert_load_pos_action(process_tree, lul_node.identifier, go_load_tool_pos)
+                    prev_loadtool_node_id = load_tool_id
+                else:
+                    process_tree.move_node(lul_node.identifier, prev_loadtool_node_id)
+            else:
+                load_tool_id = insert_load_pos_action(process_tree, lul_node.identifier, go_load_tool_pos)
+                prev_loadtool_node_id = load_tool_id
+        else:
+            load_tool_id = insert_load_pos_action(process_tree, lul_node.identifier, go_load_tool_pos)
+            prev_loadtool_node_id = load_tool_id
+        
+        prev_node_actype = lul_node.action_type
+
 
     # insert a go home and return home node
     # get the root node
@@ -166,8 +195,19 @@ def build_process_tree(cursor: Cursor):
     # insert the return home node in root
     process_tree.add_action_node(return_home_node, parent=root_node)
 
-    process_tree.show(key=lambda node : node.sort_key if node.sort_key else 9999)
+    process_tree.show(key=lambda node: node.sort_key if node.sort_key else 9999)
     return process_tree
+
+def insert_load_pos_action(tree: ActionTree, target_action_id: int, go_tool_pos: Action)-> int:
+    node = tree.get_node(target_action_id)
+    node_parent = tree.parent(target_action_id)
+    # create the go to load tool position action as a global action
+    load_tool_node = ActionNode(go_tool_pos, is_global=True)
+    # insert the node in the tree as a tnode_parent children
+    tree.add_action_node(load_tool_node, parent=node_parent)
+    # move the targeted node as a go load tool children
+    tree.move_node(target_action_id, load_tool_node.identifier)
+    return load_tool_node.identifier
 
 
 def extract_actions(cmdCursor: Cursor):
@@ -212,8 +252,8 @@ def build_aggregation_pipeline(reqbody: Dict):
 
     match_operation = {
         "$match": {'$or': [
-                match, {
-                    '_id':{
+                    match, {
+                    '_id': {
                         '$in': ['home', 'load_tool_position']
                     }
                 }
@@ -231,5 +271,17 @@ def build_aggregation_pipeline(reqbody: Dict):
         }
     }
 
-    
     return [match_operation, graphlookup_operation]
+
+def sequence_gen(sequence):
+    li = 0
+    seq_list = sequence
+
+    while(li < len(sequence)):
+        for index, val in enumerate(seq_list):
+            li += 1
+            if val['type'] == 'MOVE.STATION.TOOL':
+                yield seq_list[:index]
+                seq_list = seq_list[index+1:]
+                break
+    yield seq_list
