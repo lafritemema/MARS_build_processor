@@ -6,41 +6,14 @@ class ProgramCode(Enum):
     TRAJ_GEN = 1
     CHANGE_UTUF = 3
 
-
-class EnumLevelInterface(EnumMeta):
-
-    """
-    Enumerator Level interface
-    """
-    def __getitem__(self, name: str):
-        """
-        overload __getitem__() function
-        """
-
-        dot = name.find('.')
-        if dot != -1:
-            cindex = name[:dot]
-            oindex = name[(dot+1):]
-            e = super().__getitem__(cindex).value
-            return e.__getitem__(oindex)
-        else:
-            e = super().__getitem__(name)
-            return e.value
+class Target(Enum):
+    PROXY = "PROXY"
+    HMI = "HMI"
 
 
-class Request(Enum):
-    PROXY = "REQUEST_PROXY"
-    IMH = "REQUEST_IMH"
-
-
-class Wait(Enum):
-    PROXY = "WAIT_PROXY"
-    IMH = "WAIT_IMH"
-
-
-class Action(Enum, metaclass=EnumLevelInterface):
-    REQUEST = Request
-    WAIT = Wait
+class Action(Enum):
+    REQUEST = "REQUEST"
+    WAIT = "WAIT"
 
 
 class PathCode(Enum):
@@ -51,7 +24,8 @@ class PathCode(Enum):
 
 def utuf_set_request(uf, ut):
     data = {
-        "action": Action['REQUEST']['PROXY'].value,
+        "action": Action['REQUEST'].value,
+        "target": Target['PROXY'].value,
         "decription": "send user tool and user frame informations\
                       (NUMREG 18 et 19)",
         "definition": {
@@ -75,7 +49,8 @@ def utuf_set_request(uf, ut):
 
 def launch_program_request(program_code: ProgramCode) -> List[Dict]:
     data = [{
-                "action": Action['REQUEST']['PROXY'].value,
+                "action": Action['REQUEST'].value,
+                "target": Target['PROXY'].value,
                 "decription": "send program to launch : {program} (NUM REG 1)"
                               .format(program=program_code.name),
                 "definition": {
@@ -93,7 +68,8 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
                     }
             },
             {
-                "action": Action['REQUEST']['PROXY'].value,
+                "action": Action['REQUEST'].value,
+                "target": Target['PROXY'].value,
                 "decription": "init tracker to alert for value 0\
                     on program register (NUM REG 1)",
                 "definition": {
@@ -119,7 +95,8 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
                 }
             },
             {
-                "action": Action['WAIT']['PROXY'].value,
+                "action": Action['WAIT'].value,
+                "target": Target['PROXY'].value,
                 "decription": "wait program execution end",
                 "definition": {}
             }]
@@ -164,7 +141,8 @@ def __split_register_data(register_data: List[Dict or int or str],
 
 def possettings_set_request(pos_settings: List[int]) -> Dict or List[Dict]:
     data = {
-        "action": Action['REQUEST']['PROXY'].value,
+        "action": Action['REQUEST'].value,
+        "target": Target['PROXY'].value,
         "decription": "send movement positions settings (speed, path, cnt)",
         "definition": {
             "method": "PUT",
@@ -206,7 +184,8 @@ def possettings_set_request(pos_settings: List[int]) -> Dict or List[Dict]:
 
 def position_set_request(position: Dict):
     data = {
-            "action": Action['REQUEST']['PROXY'].value,
+            "action": Action['REQUEST'].value,
+            "target": Target['PROXY'].value,
             "decription": "set movement position parameters",
             "definition": {
                 "method": "PUT",
@@ -228,7 +207,8 @@ def position_set_request(position: Dict):
 
 def positions_set_request(positions: List[Dict]):
     data = {
-        "action": Action['REQUEST']['PROXY'].value,
+        "action": Action['REQUEST'].value,
+        "target": Target['PROXY'].value,
         "decription": "set movement positions parameters",
         "definition": {
             "method": "PUT",
@@ -270,20 +250,22 @@ def positions_set_request(positions: List[Dict]):
 
 def ihm_maniptool_request(tool_type,
                           tool_ref,
-                          manip):
+                          manip) -> List[Dict]:
     message = "{tmanip} {ttype} ref {tref}"\
                .format(tmanip=manip,
                        ttype=tool_type,
                        tref=tool_ref)
 
     data = [{
-        "action": Action['REQUEST']['IMH'].value,
+        "action": Action['REQUEST'].value,
+        "target": Target['IMH'].value,
         "description": "IMH request to change tool",
         "definition": {
             "message": message
         }},
         {
-            "action": Action['WAIT']['IMH'].value,
+            "action": Action['WAIT'].value,
+            "target": Target['IMH'].value,
             "description": "Wait for IHM confirmation for request" + message,
             "definition": {}
         }

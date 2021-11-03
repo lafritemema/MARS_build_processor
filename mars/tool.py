@@ -49,6 +49,9 @@ class ToolManipulation(Definition):
         sequence = proxyapi.ihm_maniptool_request(self.__tool_type,
                                                   self.__tool_ref,
                                                   self.__manip.value)
+        sequence.append(proxyapi.utuf_set_request(self.__uf, self.__ut))
+        sequence.extend(proxyapi.launch_program_request(proxyapi.ProgramCode.CHANGE_UTUF))
+        
         return sequence
 
 

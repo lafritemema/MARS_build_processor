@@ -158,7 +158,6 @@ class ActionTree(Tree):
         # if the ActionNode not alread in the tree, add the ActionNode
         if not self.contains(action_node.identifier):
             self.add_node(action_node, parent=parent)
-        
 
     def add_action_nodes(self, actions: List[ActionNode]):
         """ add list of actions
