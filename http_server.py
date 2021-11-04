@@ -241,15 +241,30 @@ def build_aggregation_pipeline(reqbody: Dict):
     id = reqbody.get('id')
     reference = reqbody.get('reference')
     location = reqbody.get('location')
+    area = reqbody.get('area')
+    side = reqbody.get('size')
+    position = reqbody.get('position')
 
     if id:
         match["product_reference.id"] = {'$in': id}
+
     if reference:
         match["product_reference.reference"] = {'$in': reference}
+
     if location:
         match["product_reference.parent.designation"] = location['element']
         match["product_reference.parent.id"] = {"$in": location['id']}
+    
+    if area:
+        match["targeted_area.area"] = {"$in": area}
+    
+    if side:
+        match["targeted_area.side"] = {"$in": side}
+    
+    if position:
+        match["targeted_area.position"] = {"$in": position}
 
+    print(match)
     match_operation = {
         "$match": {'$or': [
                     match, {

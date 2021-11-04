@@ -3,7 +3,7 @@ import abc
 from typing import Dict
 
 
-class Definition:
+class Definition(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod

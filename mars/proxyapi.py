@@ -258,14 +258,14 @@ def ihm_maniptool_request(tool_type,
 
     data = [{
         "action": Action['REQUEST'].value,
-        "target": Target['IMH'].value,
-        "description": "IMH request to change tool",
+        "target": Target['HMI'].value,
+        "description": "HMI request to change tool",
         "definition": {
             "message": message
         }},
         {
             "action": Action['WAIT'].value,
-            "target": Target['IMH'].value,
+            "target": Target['HMI'].value,
             "description": "Wait for IHM confirmation for request" + message,
             "definition": {}
         }

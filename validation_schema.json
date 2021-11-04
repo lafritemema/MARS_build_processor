@@ -24,6 +24,24 @@
             "items": {
               "type": "number"
             }
+          },
+          "area": {
+            "type":"array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "side": {
+            "type":"array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "position": {
+            "type":"array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "allOf": [{

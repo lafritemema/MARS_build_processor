@@ -16,11 +16,11 @@ class ToolManipulation(Definition):
     """
     def __init__(self, ut: int, uf: int, tool_type: str,
                  tool_ref: str, manipulation: Manipulation):
-        self.__ut: int = ut
-        self.__uf: int = uf
-        self.__tool_ref: str = tool_ref
-        self.__tool_type: str = tool_type
-        self.__manip: Manipulation = manipulation
+        self._ut: int = ut
+        self._uf: int = uf
+        self._tool_ref: str = tool_ref
+        self._tool_type: str = tool_type
+        self._manip: Manipulation = manipulation
 
     @staticmethod
     def parse(serialise_manip: Dict) -> 'ToolManipulation':
@@ -30,40 +30,47 @@ class ToolManipulation(Definition):
         tool_ref = serialise_manip['tool_reference']
         manip = Manipulation[serialise_manip['manipulation']]
 
-        return ToolManipulation(ut,
-                                uf,
-                                tool_type,
-                                tool_ref,
-                                manip)
+        if manip == Manipulation.LOAD:
+            return LoadManipulation(ut,
+                                    uf,
+                                    tool_type,
+                                    tool_ref)
+        elif manip == Manipulation.UNLOAD:
+            return UnloadManipulation(ut,
+                                      uf,
+                                      tool_type,
+                                      tool_ref)
+        else:
+            raise Exception("Error : tool manipulation {manip} unknow !".format(manip = serialise_manip['manipulation']))
 
     def to_dict(self):
         return {
-            'ut': self.__ut,
-            'uf': self.__uf,
-            'tool_type': self.__tool_type,
-            'tool_reference': self.__tool_ref,
-            'manipulation': self.__manip.value
+            'ut': self._ut,
+            'uf': self._uf,
+            'tool_type': self._tool_type,
+            'tool_reference': self._tool_ref,
+            'manipulation': self._manip.value
         }
-
-    def get_sequence(self):
+    '''
+    def __get_sequence(self):
         sequence = proxyapi.ihm_maniptool_request(self.__tool_type,
                                                   self.__tool_ref,
                                                   self.__manip.value)
-        sequence.append(proxyapi.utuf_set_request(self.__uf, self.__ut))
-        sequence.extend(proxyapi.launch_program_request(proxyapi.ProgramCode.CHANGE_UTUF))
         
         return sequence
-
+    '''
 
 class LoadManipulation(ToolManipulation):
 
     def __init__(self, ut: int, uf: int, tool_type: str, tool_ref: str):
-        ToolManipulation.__init__(self, ut, uf,
+        super(LoadManipulation, self).__init__(ut, uf,
                                   tool_type, tool_ref,
                                   Manipulation.LOAD)
 
     def get_sequence(self):
-        sequence = super().get_sequence()
+        sequence = proxyapi.ihm_maniptool_request(self._tool_type,
+                                                  self._tool_ref,
+                                                  self._manip.value)
         sequence.append(proxyapi.utuf_set_request(self._uf, self._ut))
         sequence.extend(proxyapi
                         .launch_program_request(proxyapi
@@ -74,9 +81,16 @@ class LoadManipulation(ToolManipulation):
 
 class UnloadManipulation(ToolManipulation):
     def __init__(self, ut: int, uf: int, tool_type: str, tool_ref: str):
-        ToolManipulation.__init__(self, ut, uf,
+        super(UnloadManipulation, self).__init__(ut, uf,
                                   tool_type, tool_ref,
                                   Manipulation.UNLOAD)
 
     def get_sequence(self):
-        return super().get_sequence()
+        sequence = proxyapi.ihm_maniptool_request(self._tool_type,
+                                                  self._tool_ref,
+                                                  self._manip.value)
+        sequence.append(proxyapi.utuf_set_request(self._uf, self._ut))
+        sequence.extend(proxyapi
+                        .launch_program_request(proxyapi
+                                                .ProgramCode.CHANGE_UTUF))
+        return sequence

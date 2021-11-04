@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 
 from mars.definition import Definition
 from mars.movement import Movement
-from mars.tool import ToolManipulation
+from mars.tool import LoadManipulation, ToolManipulation, UnloadManipulation
 
 
 class EnumLevelInterface(EnumMeta):
@@ -444,8 +444,10 @@ class Action:
 
         if _type.definition_type == 'MOVE':
             definition = Movement.parse(serialize_action['definition'])
-        elif _type.definition_type == "LOAD" or _type.definition_type == "UNLOAD":
-            definition = ToolManipulation.parse(serialize_action['definition'])
+        elif _type.definition_type == "LOAD":
+            definition = LoadManipulation.parse(serialize_action['definition'])
+        elif _type.definition_type == "UNLOAD":
+            definition = UnloadManipulation.parse(serialize_action['definition'])
         else:
             raise Exception("default on Action parsing")
 
