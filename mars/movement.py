@@ -199,9 +199,11 @@ class Position:
         }
 
     def __vector_to_dict(self):
-        tl = [(self.__vector_keys[i], float(val))
-              for i, val in enumerate(self._vector.tolist())]
-        return dict(tl)
+        vector_list = []
+        for index, key in enumerate(self.__vector_keys):
+            vector_list.append((key, round(self._vector[index], 3)))
+
+        return dict(vector_list)
 
 
 class PositionCrt(Position):
