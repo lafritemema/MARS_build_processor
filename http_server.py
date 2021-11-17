@@ -1,18 +1,20 @@
 from typing import Dict
 from enum import Enum
 import json
+import sys
 
 import pathlib
 # flask imports for server implementation
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, logging
 
 # pymongo imports for mongodb utilisation
 from pymongo import MongoClient
 from pymongo.collection import Collection, Cursor
+from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, OperationFailure
 
 # config import for configuration
-from config import Config
+from config import Config, KeyNotFoundError as KeyConfigError
 
 # fastjsonschema import for json schema validation
 import fastjsonschema
@@ -20,8 +22,12 @@ import fastjsonschema
 from mars.action import Action
 from mars.actiontreelib import ActionTree, ActionNode
 
+# get the application absolute path
 file_folder = pathlib.Path(__file__).parent.absolute()
-print(file_folder)
+# get the validation schemas file path
+valschemas_file_path = str(file_folder)+'/validation_schema.json'
+# get the application config file path
+config_file_path = str(file_folder)+'/server.cfg'
 
 
 class ActionType(Enum):
@@ -29,31 +35,79 @@ class ActionType(Enum):
     approach = 'MOVE.ARM.APPROACH'
     work = 'MOVE.ARM.WORK'
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
-# try:
-    # validation schema
-with open(str(file_folder)+'/validation_schema.json', 'r') as schfile:
-    schstr = schfile.read()
-    validation_schema = json.loads(schstr)
-# except:
-    # print("error on schema validation loading")
-    # sys.exit(1)
-
-
-# get the server configuration
-server_config = Config(str(file_folder) + '/server.cfg')
 
 # instanciate flask server
 server = Flask(__name__)
-# instanciate mongoclient get host and port from config
-mongoClient: MongoClient = MongoClient(
-    server_config['mongodb.host'],
-    server_config['mongodb.port'])
 
-# get the wanted collection
-carrier: Collection = mongoClient\
-    .get_database(server_config['mongodb.database'])\
-    .get_collection('carrier')
+# try to read configuration
+try:
+    print(bcolors.WARNING + "test de plus")
+    # read the validation schema from json file
+    with open(valschemas_file_path, 'r') as schfile:
+        schstr = schfile.read()
+        validation_schema = json.loads(schstr)
+    # read the server configuration from configuration files
+    server_config = Config(config_file_path)
+
+    mongo_host = server_config['mongodb.host']
+    mongo_port = server_config['mongodb.port']
+    mongo_db = server_config['mongodb.database']
+    mongo_collection = server_config['mongodb.collection']
+    server_port = server_config['server.port']
+    server_host = server_config['server.host']
+except FileNotFoundError as error:
+    if error.filename == valschemas_file_path:
+        print("validation schema error")
+    elif error.filename == config_file_path:
+        print("configuration error")
+    sys.exit(1)
+except KeyConfigError as error:
+    print("One or several keys are missing in configuration file.")
+    print(error.args[0])
+    sys.exit(1)
+
+try:
+    print("Connection to mongodb server ...")
+    # instanciate the mongodb client
+    mongoClient: MongoClient = MongoClient(
+        mongo_host,
+        mongo_port,
+        serverSelectionTimeoutMS=10)
+
+    # get the mongodb version to check the connection
+    mongo_version = mongoClient.server_info()['version']
+
+    # get the mongodb collection
+    carrier: Collection = mongoClient\
+    
+    if mongo_db in mongoClient.list_database_names():
+        mars: Database = mongoClient.get_database(mongo_db)
+        if mongo_collection in mars.list_collection_names():
+            carrier: Collection = mars.get_collection(mongo_collection)
+        else:
+            raise KeyError({"target": 'collection', "key": mongo_collection})
+    else:
+        raise KeyError({"target": 'database', "key": mongo_db})
+
+    print()
+except ServerSelectionTimeoutError:
+    print('MongoDB error : no mongo server listening on url {host}:{port}'.format(host=mongo_host, port=mongo_port))
+    sys.exit(1)
+except KeyError as mongoerror:
+    keyargs = mongoerror.args[0]
+    print("MongoDB error : {target} with name {key} not exists".format(target=keyargs['target'], key=keyargs['key']))
+    sys.exit(1)
 
 
 # ressource not found error handling
@@ -84,6 +138,7 @@ def mongodbErrorHandler(error: Exception):
 # sequence/move ressource handler
 @server.route("/sequence/move", methods=['GET'])
 def seqMoveHandler():
+    server.logger.info('test logger info')
     # get the request body
     body = request.get_json()
 
@@ -242,7 +297,7 @@ def build_aggregation_pipeline(reqbody: Dict):
     reference = reqbody.get('reference')
     location = reqbody.get('location')
     area = reqbody.get('area')
-    side = reqbody.get('size')
+    side = reqbody.get('side')
     position = reqbody.get('position')
 
     if id:
@@ -300,3 +355,7 @@ def sequence_gen(sequence):
                 seq_list = seq_list[index+1:]
                 break
     yield seq_list
+
+
+if __name__ == '__main__':
+    server.run(host=server_host, port=server_port)
