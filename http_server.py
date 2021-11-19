@@ -52,7 +52,6 @@ server = Flask(__name__)
 
 # try to read configuration
 try:
-    print(bcolors.WARNING + "test de plus")
     # read the validation schema from json file
     with open(valschemas_file_path, 'r') as schfile:
         schstr = schfile.read()
@@ -138,7 +137,6 @@ def mongodbErrorHandler(error: Exception):
 # sequence/move ressource handler
 @server.route("/sequence/move", methods=['GET'])
 def seqMoveHandler():
-    server.logger.info('test logger info')
     # get the request body
     body = request.get_json()
 
@@ -147,14 +145,20 @@ def seqMoveHandler():
     validate = fastjsonschema.compile(validation_schema)
     validate(body)
 
+    print('Build request for database')
     pipeline = build_aggregation_pipeline(body)
-
+    
+    print('Send request to database')
     cursor: Cursor = carrier.aggregate(pipeline)
-
+    
+    print('Build the process tree')
     process_tree = build_process_tree(cursor)
+    
+    print('Generate the sequence')
     sequence = process_tree.get_sequence()
     tree = generate_desc(sequence)
 
+    print('Return sequence to client')
     return jsonify(status='SUCCESS', sequence=sequence, processTree=tree), 200
 
 
@@ -191,8 +195,6 @@ def build_process_tree(cursor: Cursor):
     process_tree = ActionTree()
     for a in actions:
         process_tree.add_branch_for_action(a)
-
-    print("action tree generated")
 
     # create and insert global actions
     # create global actions
@@ -321,7 +323,6 @@ def build_aggregation_pipeline(reqbody: Dict):
     if position:
         match["targeted_area.position"] = {"$in": position}
 
-    print(match)
     match_operation = {
         "$match": {'$or': [
                     match, {
@@ -373,7 +374,6 @@ def action_group_generator(sequence):
 
             # if end on sequence break the loop
             if li >= len(seq_list):
-                print('break')
                 break
         
         # when quit the loop (target change or end of sequence)
