@@ -26,7 +26,7 @@ def utuf_set_request(uf, ut):
     data = {
         "action": Action['REQUEST'].value,
         "target": Target['PROXY'].value,
-        "decription": "send user tool and user frame informations\
+        "description": "send user tool and user frame informations\
                       (NUMREG 18 et 19)",
         "definition": {
             "method": "PUT",
@@ -51,7 +51,7 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
     data = [{
                 "action": Action['REQUEST'].value,
                 "target": Target['PROXY'].value,
-                "decription": "send program to launch : {program} (NUM REG 1)"
+                "description": "send program to launch : {program} (NUM REG 1)"
                               .format(program=program_code.name),
                 "definition": {
                     "method": "PUT",
@@ -70,7 +70,7 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
             {
                 "action": Action['REQUEST'].value,
                 "target": Target['PROXY'].value,
-                "decription": "init tracker to alert for value 0\
+                "description": "init tracker to alert for value 0\
                     on program register (NUM REG 1)",
                 "definition": {
                     "method": "SUBSCRIBE",
@@ -97,7 +97,7 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
             {
                 "action": Action['WAIT'].value,
                 "target": Target['PROXY'].value,
-                "decription": "wait program execution end",
+                "description": "wait program execution end",
                 "definition": {}
             }]
 
@@ -143,7 +143,7 @@ def possettings_set_request(pos_settings: List[int]) -> Dict or List[Dict]:
     data = {
         "action": Action['REQUEST'].value,
         "target": Target['PROXY'].value,
-        "decription": "send movement positions settings (speed, path, cnt)",
+        "description": "send movement positions settings (speed, path, cnt)",
         "definition": {
             "method": "PUT",
             "api": "/numericRegister/block",
@@ -186,7 +186,7 @@ def position_set_request(position: Dict):
     data = {
             "action": Action['REQUEST'].value,
             "target": Target['PROXY'].value,
-            "decription": "set movement position parameters",
+            "description": "set movement position parameters",
             "definition": {
                 "method": "PUT",
                 "api": "/positionRegister/single",
@@ -209,7 +209,7 @@ def positions_set_request(positions: List[Dict]):
     data = {
         "action": Action['REQUEST'].value,
         "target": Target['PROXY'].value,
-        "decription": "set movement positions parameters",
+        "description": "set movement positions parameters",
         "definition": {
             "method": "PUT",
             "api": "/positionRegister/block",
