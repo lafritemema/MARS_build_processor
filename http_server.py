@@ -155,7 +155,7 @@ def seqMoveHandler():
     sequence = process_tree.get_sequence()
     tree = generate_desc(sequence)
 
-    return jsonify(status='SUCCESS', sequence=sequence, tree=tree), 200
+    return jsonify(status='SUCCESS', sequence=sequence, processTree=tree), 200
 
 
 @server.route('/', methods=['GET'])
@@ -165,22 +165,22 @@ def baseHandler():
     return "ok"
 
 
-def generate_desc(sequence:list):
-    # suppression du la premier et dernier element (home)
-    final_sequence = []
-    seq = sequence[1:-1]
-    load_tool_filter = filter(lambda a: a['type'] == 'MOVE.STATION.TOOL', seq)
-
-    if len(list(load_tool_filter)) > 0:
-        gen = sequence_gen(seq[1:])
-
-        for extract_seq in gen:
-            desc = [{"id": action['id'], "description": action["description"]} for action in extract_seq]
-            final_sequence.append(desc)
-
-        return final_sequence
+def get_action_target(action_type: str) -> str:
+    if action_type == 'LOAD.EFFECTOR' or\
+       action_type == 'LOAD.TOOL' or\
+       action_type == 'UNLOAD.EFFECTOR' or\
+       action_type == 'UNLOAD.TOOL':
+        return "USER"
     else:
-        return seq
+        return "ROBOT"
+
+def generate_desc(sequence: list):
+    # suppression du la premier et dernier element (home)
+    seq = sequence[1:-1]
+
+    # load_tool_filter = filter(lambda a: a['type'] == 'MOVE.STATION.TOOL', seq)
+    gen = action_group_generator(seq)
+    return list(gen)
 
 def build_process_tree(cursor: Cursor):
     # extract dependences from cursor
@@ -253,7 +253,9 @@ def build_process_tree(cursor: Cursor):
     process_tree.show(key=lambda node: node.sort_key if node.sort_key else 9999)
     return process_tree
 
-def insert_load_pos_action(tree: ActionTree, target_action_id: int, go_tool_pos: Action)-> int:
+def insert_load_pos_action(tree: ActionTree,
+                           target_action_id: int,
+                           go_tool_pos: Action) -> int:
     node = tree.get_node(target_action_id)
     node_parent = tree.parent(target_action_id)
     # create the go to load tool position action as a global action
@@ -343,18 +345,46 @@ def build_aggregation_pipeline(reqbody: Dict):
 
     return [match_operation, graphlookup_operation]
 
-def sequence_gen(sequence):
-    li = 0
-    seq_list = sequence
+def action_group_generator(sequence):
+    li = 0  # var to store index
+    # var to store action sequence
+    # generate list from sequence adding target information
+    seq_list = [{"target": get_action_target(a['type']), "action":a}\
+                for a in sequence]
+    # var to store group, init with target index 0
+    group = seq_list[0]['target']
 
-    while(li < len(sequence)):
-        for index, val in enumerate(seq_list):
-            li += 1
-            if val['type'] == 'MOVE.STATION.TOOL':
-                yield seq_list[:index]
-                seq_list = seq_list[index+1:]
+    # while index < sequence end
+    while li < len(seq_list):
+        step_stages = []  # var to store stages
+
+        # while action target is same add action in step_stages
+        while seq_list[li]['target'] == group:
+            a = seq_list[li]['action']
+            # append object describing action on step_stages
+            step_stages.append(
+                {
+                 "description": a['description'],
+                 "id": a['id'],
+                 "type": a['type']
+                }
+            )
+            li += 1  # increment index
+
+            # if end on sequence break the loop
+            if li >= len(seq_list):
+                print('break')
                 break
-    yield seq_list
+        
+        # when quit the loop (target change or end of sequence)
+        # yield object with group and step_changes
+        yield {"target": group,
+               "stepStages": step_stages}
+
+        # update group if not the end of sequence
+        if li < len(seq_list):
+            group = seq_list[li]['target']
+        
 
 
 if __name__ == '__main__':
