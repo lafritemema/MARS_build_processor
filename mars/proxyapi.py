@@ -70,8 +70,7 @@ def launch_program_request(program_code: ProgramCode) -> List[Dict]:
             {
                 "action": Action['REQUEST'].value,
                 "target": Target['PROXY'].value,
-                "description": "init tracker to alert for value 0\
-                    on program register (NUM REG 1)",
+                "description": "init tracker to alert for value 0 on program register (NUM REG 1)",
                 "definition": {
                     "method": "SUBSCRIBE",
                     "api": "/numericRegister/single",
@@ -266,7 +265,7 @@ def ihm_maniptool_request(tool_type,
         {
             "action": Action['WAIT'].value,
             "target": Target['HMI'].value,
-            "description": "Wait for IHM confirmation for request" + message,
+            "description": "Wait for IHM confirmation for request " + message,
             "definition": {}
         }
     ]
